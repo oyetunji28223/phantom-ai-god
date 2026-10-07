@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_health_endpoint() -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["app"] == "phantom-ai-god"
+
+
+def test_signals_endpoint() -> None:
+    response = client.get("/signals")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "signals" in payload
+    assert isinstance(payload["signals"], list)
+    assert len(payload["signals"]) >= 1
+    assert payload["signals"][0]["symbol"]
+
+
+def test_evaluate_trade_endpoint_rejects_large_trade() -> None:
+    response = client.post(
+        "/evaluate-trade",
+        json={"trade_value_usd": 500.0, "daily_loss_usd": 50.0, "drawdown_pct": 0.08},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["allowed"] is False
+
+
+def test_paper_trade_endpoint() -> None:
+    response = client.post("/paper-trade")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "paper_trading"
+    assert "orders" in payload
+    assert isinstance(payload["orders"], list)
