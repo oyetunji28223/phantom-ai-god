@@ -6,6 +6,8 @@ from typing import Any
 
 
 class TradeStore:
+    """SQLite-backed persistence for simulated paper trades."""
+
     _db_path: Path = Path(__file__).resolve().parents[1] / "data" / "phantom_ai_god.db"
 
     @classmethod
@@ -54,3 +56,8 @@ class TradeStore:
                 (max(1, min(limit, 100)),),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def clear_all(self) -> None:
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("DELETE FROM paper_trades")
+            conn.commit()

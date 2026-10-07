@@ -1,13 +1,6 @@
 from __future__ import annotations
 
-from app.services.market_feed import MarketFeedService, MarketFeedSnapshot
-from app.services.storage import TradeStore
-from app.services.trade_engine import TradeEngine, TradePlan
+from app.services.signal_aggregator import SignalAggregator
+from app.services.strategy_registry import StrategyConfig, StrategyRegistry
 
-__all__ = [
-    "MarketFeedService",
-    "MarketFeedSnapshot",
-    "TradeEngine",
-    "TradePlan",
-    "TradeStore",
-]
+__all__ = ["SignalAggregator", "StrategyConfig", "StrategyRegistry"]
