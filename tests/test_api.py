@@ -42,3 +42,13 @@ def test_paper_trade_endpoint() -> None:
     assert payload["mode"] == "paper_trading"
     assert "orders" in payload
     assert isinstance(payload["orders"], list)
+    assert len(payload["orders"]) >= 1
+
+
+def test_trade_history_endpoint() -> None:
+    client.post("/paper-trade")
+    response = client.get("/trade-history")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "trades" in payload
+    assert isinstance(payload["trades"], list)
