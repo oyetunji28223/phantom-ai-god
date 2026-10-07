@@ -1,23 +1,82 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.config import settings
-from app.core.safety import RiskGuard
 from app.core.market_scanner import MarketScanner
+from app.core.safety import RiskGuard
+from app.services.signal_aggregator import SignalAggregator
 from app.services.storage import TradeStore
+from app.services.strategy_registry import StrategyRegistry
 from app.strategies.momentum import MomentumStrategy
 
 app = FastAPI(title="Phantom AI God", version="0.1.0")
 scanner = MarketScanner()
 strategy = MomentumStrategy(minimum_score=65.0)
+strategy_registry = StrategyRegistry()
+signal_aggregator = SignalAggregator()
 risk_guard = RiskGuard(
     max_trade_usd=settings.max_trade_usd,
     max_daily_loss_usd=settings.max_daily_loss_usd,
     max_drawdown_pct=settings.max_drawdown_pct,
 )
 trade_store = TradeStore()
+
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard() -> str:
+    return """
+    <html>
+      <head>
+        <title>Phantom AI God</title>
+        <style>
+          body { font-family: Arial, sans-serif; background: #0b1020; color: #ecf2ff; margin: 0; padding: 32px; }
+          .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+          .card { background: #111a2f; border: 1px solid #24314d; border-radius: 12px; padding: 16px; box-shadow: 0 8px 18px rgba(0,0,0,0.2); }
+          .badge { display: inline-block; background: #1c7c54; color: #fff; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+          pre { background: #08111d; padding: 12px; border-radius: 8px; overflow: auto; }
+          button { background: #3b82f6; color: white; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+        </style>
+      </head>
+      <body>
+        <h1>Phantom AI God</h1>
+        <div class="badge">AI Sniper Dashboard</div>
+        <div class="grid" style="margin-top: 20px;">
+          <div class="card">
+            <h3>System Health</h3>
+            <div id="health">Loading...</div>
+          </div>
+          <div class="card">
+            <h3>Strategy Registry</h3>
+            <div id="strategies">Loading...</div>
+          </div>
+          <div class="card">
+            <h3>Signal Feed</h3>
+            <pre id="signals">Loading...</pre>
+          </div>
+          <div class="card">
+            <h3>Recent Trade History</h3>
+            <pre id="trades">Loading...</pre>
+          </div>
+        </div>
+        <div style="margin-top: 20px;"><button onclick="loadDashboard()">Refresh</button></div>
+        <script>
+          async function loadDashboard() {
+            const health = await fetch('/health').then(r => r.json());
+            const strategies = await fetch('/strategies').then(r => r.json());
+            const signals = await fetch('/signals').then(r => r.json());
+            const trades = await fetch('/trade-history').then(r => r.json());
+            document.getElementById('health').textContent = JSON.stringify(health, null, 2);
+            document.getElementById('strategies').textContent = JSON.stringify(strategies, null, 2);
+            document.getElementById('signals').textContent = JSON.stringify(signals, null, 2);
+            document.getElementById('trades').textContent = JSON.stringify(trades, null, 2);
+          }
+          loadDashboard();
+        </script>
+      </body>
+    </html>
+    """
 
 
 @app.get("/health")
@@ -28,6 +87,19 @@ def health() -> dict:
         "environment": settings.environment,
         "live_trading_enabled": settings.enable_live_trading,
         "emergency_shutdown": settings.emergency_shutdown,
+    }
+
+
+@app.get("/strategies")
+def strategies() -> dict:
+    config = strategy_registry.get_default()
+    return {
+        "available": strategy_registry.list_available(),
+        "default": {
+            "minimum_score": config.minimum_score,
+            "max_top_signals": config.max_top_signals,
+            "enable_live_trading": config.enable_live_trading,
+        },
     }
 
 
@@ -50,6 +122,11 @@ def fetch_signals() -> dict:
             for signal in ranked
         ]
     }
+
+
+@app.get("/signal-aggregate")
+def fetch_signal_aggregate() -> dict:
+    return {"signals": signal_aggregator.aggregate()}
 
 
 @app.get("/trade-history")

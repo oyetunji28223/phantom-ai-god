@@ -15,6 +15,21 @@ def test_health_endpoint() -> None:
     assert payload["app"] == "phantom-ai-god"
 
 
+def test_root_dashboard_renders() -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Phantom AI God" in response.text
+
+
+def test_strategies_endpoint() -> None:
+    response = client.get("/strategies")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "available" in payload
+    assert isinstance(payload["available"], list)
+    assert payload["available"]
+
+
 def test_signals_endpoint() -> None:
     response = client.get("/signals")
     assert response.status_code == 200
@@ -23,6 +38,14 @@ def test_signals_endpoint() -> None:
     assert isinstance(payload["signals"], list)
     assert len(payload["signals"]) >= 1
     assert payload["signals"][0]["symbol"]
+
+
+def test_signal_aggregate_endpoint() -> None:
+    response = client.get("/signal-aggregate")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "signals" in payload
+    assert isinstance(payload["signals"], list)
 
 
 def test_evaluate_trade_endpoint_rejects_large_trade() -> None:
