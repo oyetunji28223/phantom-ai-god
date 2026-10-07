@@ -6,16 +6,20 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.config import settings
 from app.core.market_scanner import MarketScanner
 from app.core.safety import RiskGuard
+from app.services.ai_pipeline import AIPipeline
+from app.services.live_market_feed import LiveMarketFeed
 from app.services.signal_aggregator import SignalAggregator
 from app.services.storage import TradeStore
 from app.services.strategy_registry import StrategyRegistry
 from app.strategies.momentum import MomentumStrategy
 
-app = FastAPI(title="Phantom AI God", version="0.1.0")
+app = FastAPI(title="Phantom AI God", version="0.2.0")
 scanner = MarketScanner()
 strategy = MomentumStrategy(minimum_score=65.0)
 strategy_registry = StrategyRegistry()
 signal_aggregator = SignalAggregator()
+ai_pipeline = AIPipeline()
+live_market_feed = LiveMarketFeed()
 risk_guard = RiskGuard(
     max_trade_usd=settings.max_trade_usd,
     max_daily_loss_usd=settings.max_daily_loss_usd,
@@ -35,13 +39,18 @@ def dashboard() -> str:
           .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
           .card { background: #111a2f; border: 1px solid #24314d; border-radius: 12px; padding: 16px; box-shadow: 0 8px 18px rgba(0,0,0,0.2); }
           .badge { display: inline-block; background: #1c7c54; color: #fff; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
-          pre { background: #08111d; padding: 12px; border-radius: 8px; overflow: auto; }
-          button { background: #3b82f6; color: white; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+          pre { background: #08111d; padding: 12px; border-radius: 8px; overflow: auto; max-height: 200px; }
+          button { background: #3b82f6; color: white; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; margin: 4px; }
+          h3 { margin-top: 0; color: #58a3ff; }
         </style>
       </head>
       <body>
         <h1>Phantom AI God</h1>
-        <div class="badge">AI Sniper Dashboard</div>
+        <div class="badge">AI Sniper Dashboard v0.2</div>
+        <div style="margin-top: 20px;">
+          <button onclick="loadDashboard()">Refresh</button>
+          <button onclick="loadTrending()">Load Trending</button>
+        </div>
         <div class="grid" style="margin-top: 20px;">
           <div class="card">
             <h3>System Health</h3>
@@ -52,25 +61,32 @@ def dashboard() -> str:
             <div id="strategies">Loading...</div>
           </div>
           <div class="card">
-            <h3>Signal Feed</h3>
+            <h3>AI Signals</h3>
             <pre id="signals">Loading...</pre>
           </div>
           <div class="card">
-            <h3>Recent Trade History</h3>
+            <h3>Trending Tokens</h3>
+            <pre id="trending">Loading...</pre>
+          </div>
+          <div class="card">
+            <h3>Recent Trades</h3>
             <pre id="trades">Loading...</pre>
           </div>
         </div>
-        <div style="margin-top: 20px;"><button onclick="loadDashboard()">Refresh</button></div>
         <script>
           async function loadDashboard() {
             const health = await fetch('/health').then(r => r.json());
             const strategies = await fetch('/strategies').then(r => r.json());
-            const signals = await fetch('/signals').then(r => r.json());
+            const signals = await fetch('/ai-signals').then(r => r.json());
             const trades = await fetch('/trade-history').then(r => r.json());
             document.getElementById('health').textContent = JSON.stringify(health, null, 2);
             document.getElementById('strategies').textContent = JSON.stringify(strategies, null, 2);
-            document.getElementById('signals').textContent = JSON.stringify(signals, null, 2);
-            document.getElementById('trades').textContent = JSON.stringify(trades, null, 2);
+            document.getElementById('signals').textContent = JSON.stringify(signals.signals.slice(0, 3), null, 2);
+            document.getElementById('trades').textContent = JSON.stringify(trades.trades.slice(0, 5), null, 2);
+          }
+          async function loadTrending() {
+            const trending = await fetch('/trending').then(r => r.json());
+            document.getElementById('trending').textContent = JSON.stringify(trending.tokens.slice(0, 5), null, 2);
           }
           loadDashboard();
         </script>
@@ -87,6 +103,7 @@ def health() -> dict:
         "environment": settings.environment,
         "live_trading_enabled": settings.enable_live_trading,
         "emergency_shutdown": settings.emergency_shutdown,
+        "version": "0.2.0",
     }
 
 
@@ -127,6 +144,29 @@ def fetch_signals() -> dict:
 @app.get("/signal-aggregate")
 def fetch_signal_aggregate() -> dict:
     return {"signals": signal_aggregator.aggregate()}
+
+
+@app.get("/ai-signals")
+def ai_signals() -> dict:
+    aggregated = signal_aggregator.aggregate()
+    scored = []
+    for item in aggregated:
+        scored.append(ai_pipeline.run(item))
+    return {"signals": scored}
+
+
+@app.get("/trending")
+async def trending() -> dict:
+    tokens = await live_market_feed.fetch_trending()
+    return {"tokens": tokens}
+
+
+@app.get("/market-data/{coin_id}")
+async def market_data(coin_id: str) -> dict:
+    data = await live_market_feed.fetch_coin_data(coin_id)
+    if data:
+        return {"data": data}
+    return JSONResponse(status_code=404, content={"error": "coin not found"})
 
 
 @app.get("/trade-history")
