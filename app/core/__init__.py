@@ -1,12 +1,6 @@
 from __future__ import annotations
 
 from app.config import settings
+from app.core.market_scanner import MarketScanner, TokenSignal
 
-
-def app_metadata() -> dict:
-    return {
-        "name": settings.app_name,
-        "environment": settings.environment,
-        "live_trading_enabled": settings.enable_live_trading,
-        "emergency_shutdown": settings.emergency_shutdown,
-    }
+__all__ = ["settings", "MarketScanner", "TokenSignal"]

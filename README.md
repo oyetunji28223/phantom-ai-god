@@ -1,20 +1,12 @@
 # Phantom AI God
 
-Phantom AI God is a starter framework for an AI-assisted memecoin sniper and execution system.
+Phantom AI God is an AI-assisted memecoin sniper and execution system starter.
 
 This repository is intentionally structured as a safe, testable foundation for:
 - market scanning and signal generation
-- risk controls and trade guardrails
-- execution orchestration
-- monitoring and alerting
-- future AI model integration
-
-## Project goals
-- Discover promising low-cap and mid-cap movement opportunities
-- Rank opportunities using a transparent scoring system
-- Apply safety checks before any trade decision
-- Support a paper-trading mode before real execution
-- Provide a clean backend API for monitoring and automation
+- risk controls and execution guardrails
+- paper trading and simulation
+- monitoring, alerts, and future AI scoring
 
 ## Architecture
 
@@ -22,21 +14,33 @@ This repository is intentionally structured as a safe, testable foundation for:
 phantom-ai-god/
 ├── app/
 │   ├── core/
+│   │   ├── __init__.py
+│   │   ├── market_scanner.py
+│   │   └── safety.py
 │   ├── services/
+│   │   ├── market_feed.py
+│   │   └── trade_engine.py
 │   ├── strategies/
+│   │   ├── __init__.py
+│   │   └── momentum.py
 │   ├── config.py
 │   ├── main.py
 │   └── __init__.py
 ├── tests/
+├── Dockerfile
+├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
-└── scripts/
-    └── run_dev.py
+├── scripts/
+│   └── run_dev.py
+└── .dockerignore
 ```
 
 ## Quick start
+
+### Local Python
 
 1. Create a virtual environment
 
@@ -63,12 +67,21 @@ cp .env.example .env
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Visit the API docs
+5. Open the API docs
 
 - Swagger UI: http://localhost:8000/docs
-- OpenAPI JSON: http://localhost:8000/openapi.json
+- Health check: http://localhost:8000/health
 
-## Default endpoints
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Then open:
+- http://localhost:8000/docs
+
+## API overview
 
 - GET /health
 - GET /signals
@@ -77,26 +90,21 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## Safety model
 
-This project includes a layered safety system that is intentionally strict:
 - max trade size cap
-- maximum drawdown cap
-- loss-per-trade guard
+- max daily loss cap
+- max drawdown cap
 - no live execution unless explicitly enabled
 - emergency shutdown flag
 
-## Notes
-
-This is a starter implementation focused on a production-friendly structure and safe defaults. It does not execute on-chain transactions by default and should only be run with a paper-trading or sandbox environment.
-
 ## Roadmap
 
-- [ ] live market feed integration
-- [ ] wallet and blockchain execution adapters
-- [ ] AI signal ranking model
-- [ ] dashboard UI
-- [ ] alerting and monitoring
-- [ ] advanced strategy backtesting
+- [ ] live market data adapter
+- [ ] wallet and execution integration
+- [ ] persistence layer
+- [ ] AI scoring model
+- [ ] dashboard and alerts
+- [ ] backtesting engine
 
 ## Disclaimer
 
-This project is for educational and research purposes. Do not use it for uncontrolled or real-money trading without proper testing, auditing, and risk controls.
+This project is for research and simulation purposes. It should not be used for real trading without a strict testing and audit process.

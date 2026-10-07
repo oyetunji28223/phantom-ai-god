@@ -1,0 +1,9 @@
+# This file prevents local caches or environment files from being sent into the Docker build context.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+.git/
+.gitignore
