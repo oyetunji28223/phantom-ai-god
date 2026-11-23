@@ -13,17 +13,25 @@ class LiveMarketFeed:
         self.cg_api = CoinGeckoAPI()
 
     async def fetch_trending(self) -> list[dict[str, Any]]:
-        """Fetch trending tokens from CoinGecko."""
+        """Fetch trending tokens from CoinGecko, skipping malformed entries."""
         trending = await self.cg_api.trending_tokens()
-        return [
-            {
-                "symbol": item["item"]["symbol"].upper(),
-                "name": item["item"]["name"],
-                "market_cap_rank": item["item"]["market_cap_rank"],
-                "thumb": item["item"]["thumb"],
-            }
-            for item in trending[:10]
-        ]
+        tokens: list[dict[str, Any]] = []
+        for item in trending[:10]:
+            details = item.get("item") if isinstance(item, dict) else None
+            if not isinstance(details, dict):
+                continue
+            symbol = details.get("symbol")
+            if not isinstance(symbol, str) or not symbol.strip():
+                continue
+            tokens.append(
+                {
+                    "symbol": symbol.upper(),
+                    "name": details.get("name", symbol),
+                    "market_cap_rank": details.get("market_cap_rank"),
+                    "thumb": details.get("thumb"),
+                }
+            )
+        return tokens
 
     async def fetch_coin_data(self, coin_id: str) -> dict[str, Any] | None:
         """Fetch detailed market data for a coin."""

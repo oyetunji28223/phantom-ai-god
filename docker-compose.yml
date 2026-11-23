@@ -4,8 +4,11 @@ services:
   app:
     build: .
     container_name: phantom-ai-god
-    env_file:
-      - .env
+    # Defaults are safe; override from your shell or an untracked .env if needed.
+    environment:
+      ENVIRONMENT: production
+      ENABLE_LIVE_TRADING: "false"
+      EMERGENCY_SHUTDOWN: "false"
     ports:
       - "8000:8000"
     restart: unless-stopped

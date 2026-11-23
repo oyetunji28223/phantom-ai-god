@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.market_scanner import MarketScanner
@@ -13,7 +14,15 @@ from app.services.storage import TradeStore
 from app.services.strategy_registry import StrategyRegistry
 from app.strategies.momentum import MomentumStrategy
 
-app = FastAPI(title="Phantom AI God", version="0.2.0")
+app = FastAPI(title="Phantom AI God", version="0.2.1")
+
+
+class TradeEvaluation(BaseModel):
+    trade_value_usd: float = Field(ge=0, allow_inf_nan=False)
+    daily_loss_usd: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+    drawdown_pct: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+
+
 scanner = MarketScanner()
 strategy = MomentumStrategy(minimum_score=65.0)
 strategy_registry = StrategyRegistry()
@@ -24,6 +33,7 @@ risk_guard = RiskGuard(
     max_trade_usd=settings.max_trade_usd,
     max_daily_loss_usd=settings.max_daily_loss_usd,
     max_drawdown_pct=settings.max_drawdown_pct,
+    emergency_shutdown=settings.emergency_shutdown,
 )
 trade_store = TradeStore()
 
@@ -46,7 +56,7 @@ def dashboard() -> str:
       </head>
       <body>
         <h1>Phantom AI God</h1>
-        <div class="badge">AI Sniper Dashboard v0.2</div>
+        <div class="badge">Paper-trading dashboard v0.2.1</div>
         <div style="margin-top: 20px;">
           <button onclick="loadDashboard()">Refresh</button>
           <button onclick="loadTrending()">Load Trending</button>
@@ -103,7 +113,7 @@ def health() -> dict:
         "environment": settings.environment,
         "live_trading_enabled": settings.enable_live_trading,
         "emergency_shutdown": settings.emergency_shutdown,
-        "version": "0.2.0",
+        "version": "0.2.1",
     }
 
 
@@ -175,12 +185,10 @@ def trade_history(limit: int = 10) -> dict:
 
 
 @app.post("/evaluate-trade")
-def evaluate_trade(trade: dict) -> dict:
-    trade_value_usd = float(trade.get("trade_value_usd", 0.0))
-    daily_loss_usd = float(trade.get("daily_loss_usd", 0.0))
-    drawdown_pct = float(trade.get("drawdown_pct", 0.0))
-
-    review = risk_guard.evaluate_trade(trade_value_usd, daily_loss_usd, drawdown_pct)
+def evaluate_trade(trade: TradeEvaluation) -> dict:
+    review = risk_guard.evaluate_trade(
+        trade.trade_value_usd, trade.daily_loss_usd, trade.drawdown_pct
+    )
     return {
         "allowed": review.allowed,
         "reason": review.reason,
@@ -190,8 +198,11 @@ def evaluate_trade(trade: dict) -> dict:
 
 @app.post("/paper-trade")
 def paper_trade() -> dict:
-    if settings.enable_live_trading:
-        return JSONResponse(status_code=400, content={"message": "Live trading is disabled in this environment."})
+    if settings.emergency_shutdown:
+        return JSONResponse(
+            status_code=403,
+            content={"message": "Trading is halted by emergency shutdown."},
+        )
 
     top_signals = scanner.scan()[:3]
     orders = []

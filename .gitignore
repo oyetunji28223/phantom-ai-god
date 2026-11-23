@@ -11,6 +11,12 @@ ENV/
 # Environment files
 .env
 .env.*
+!.env.example
+
+# Local runtime data
+*.db
+*.db-journal
+app/data/
 
 # Editor files
 .vscode/

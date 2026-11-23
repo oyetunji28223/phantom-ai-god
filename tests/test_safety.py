@@ -22,3 +22,16 @@ def test_risk_guard_rejects_drawdown() -> None:
     result = guard.evaluate_trade(100.0, 50.0, 0.2)
     assert result.allowed is False
     assert "drawdown" in result.reason
+
+
+def test_risk_guard_rejects_negative_and_non_finite_inputs() -> None:
+    guard = RiskGuard(max_trade_usd=250.0, max_daily_loss_usd=500.0, max_drawdown_pct=0.15)
+    assert guard.evaluate_trade(-1.0, 0.0, 0.0).allowed is False
+    assert guard.evaluate_trade(float("nan"), 0.0, 0.0).allowed is False
+
+
+def test_risk_guard_respects_emergency_shutdown() -> None:
+    guard = RiskGuard(250.0, 500.0, 0.15, emergency_shutdown=True)
+    result = guard.evaluate_trade(10.0, 0.0, 0.0)
+    assert result.allowed is False
+    assert "shutdown" in result.reason
